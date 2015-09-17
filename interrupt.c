@@ -88,8 +88,12 @@ void setIdt()
 }
 
 void keyboard_routine() {
-    char read = inb(0x60);
-    int brk = read >>7;
-    if (brk)
-	printc_xy(0,0,char_map[read & 0x3F]);
+  char read = inb(0x60);
+  int brk = read >>7;
+  if (brk) {
+    char ch = char_map[read & 0x3F];
+    ch = ch == '\0' ? 'C' : ch;
+    printc_xy(0,0,ch);
+    
+  }
 }
