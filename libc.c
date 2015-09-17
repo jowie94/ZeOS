@@ -49,7 +49,8 @@ int write(int fd, char *buffer, int size) {
 	  "movl %2, %%ecx\n\t"
 	  "movl %3, %%edx\n\t"
 	  "movl $4, %%eax\n\t"
-	  "int $0x80"
+	  "int $0x80\n\t"
+	  "movl %%eax, %0"
 	  : "=r" (res) 
 	  : "m" (fd), "m" (buffer), "m" (size)
 	  : "%eax", "%ebx", "%ecx", "%edx");
