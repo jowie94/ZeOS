@@ -91,5 +91,5 @@ void keyboard_routine() {
     char read = inb(0x60);
     int brk = read >>7;
     if (brk)
-	printc(char_map[read & 0x3F]);
+	printc_xy(0,0,char_map[read & 0x3F]);
 }

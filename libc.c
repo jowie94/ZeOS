@@ -43,3 +43,19 @@ int strlen(char *a)
   return i;
 }
 
+int write(int fd, char *buffer, int size) {
+  int res;
+  __asm__("movl %1, %%ebx\n\t"
+	  "movl %2, %%ecx\n\t"
+	  "movl %3, %%edx\n\t"
+	  "movl $4, %%eax\n\t"
+	  "int $0x80"
+	  : "=r" (res) 
+	  : "m" (fd), "m" (buffer), "m" (size)
+	  : "%eax", "%ebx", "%ecx", "%edx");
+  if (res < 0) {
+    errno = res * -1;
+    return -1;
+  }
+  return res;  
+}
