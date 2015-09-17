@@ -87,3 +87,9 @@ void setIdt()
   set_idt_reg(&idtR);
 }
 
+void keyboard_routine() {
+    char read = inb(0x60);
+    int brk = read >>7;
+    if (brk)
+	printc(char_map[read & 0x3F]);
+}

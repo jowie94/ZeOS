@@ -33,3 +33,6 @@
 
 # ZeOS binary
 zeos.bin
+
+# Vim swp files
+*.swp
