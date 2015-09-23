@@ -8,11 +8,11 @@
 AS86	= as86 -0 -a
 LD86	= ld86 -0
 
-HOSTCFLAGS = -Wall -Wstrict-prototypes -g
+HOSTCFLAGS = -Wall -Wstrict-prototypes -g -m32
 HOSTCC 	= gcc
 CC      = gcc
-AS      = as
-LD      = ld
+AS      = as --32
+LD      = ld -melf_i386
 OBJCOPY = objcopy -O binary -R .note -R .comment -S
 
 INCLUDEDIR = include
@@ -20,8 +20,8 @@ INCLUDEDIR = include
 # Define here flags to compile the tests if needed
 JP =
 
-CFLAGS = -O2  -g $(JP) -fno-omit-frame-pointer -ffreestanding -Wall -I$(INCLUDEDIR)
-ASMFLAGS = -I$(INCLUDEDIR)
+CFLAGS = -O2  -g $(JP) -fno-omit-frame-pointer -ffreestanding -Wall -I$(INCLUDEDIR) -m32
+ASMFLAGS = -I$(INCLUDEDIR) -m32
 SYSLDFLAGS = -T system.lds
 USRLDFLAGS = -T user.lds
 LINKFLAGS = -g
