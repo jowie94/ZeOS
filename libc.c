@@ -1,5 +1,5 @@
 /*
- * libc.c 
+ * libc.c
  */
 
 #include <libc.h>
@@ -12,9 +12,9 @@ void itoa(int a, char *b)
 {
   int i, i1;
   char c;
-  
+
   if (a==0) { b[0]='0'; b[1]=0; return ;}
-  
+
   i=0;
   while (a>0)
   {
@@ -22,7 +22,7 @@ void itoa(int a, char *b)
     a=a/10;
     i++;
   }
-  
+
   for (i1=0; i1<i/2; i1++)
   {
     c=b[i1];
@@ -35,28 +35,22 @@ void itoa(int a, char *b)
 int strlen(char *a)
 {
   int i;
-  
+
   i=0;
-  
+
   while (a[i]!=0) i++;
-  
+
   return i;
 }
 
 int write(int fd, char *buffer, int size) {
   int res;
-  __asm__("movl %1, %%ebx\n\t"
-	  "movl %2, %%ecx\n\t"
-	  "movl %3, %%edx\n\t"
-	  "movl $4, %%eax\n\t"
-	  "int $0x80\n\t"
-	  "movl %%eax, %0"
-	  : "=r" (res) 
-	  : "m" (fd), "m" (buffer), "m" (size)
-	  : "%eax", "%ebx", "%ecx", "%edx");
+  __asm__("int $0x80"
+	  : "=a" (res)
+	  : "b" (fd), "c" (buffer), "d" (size), "a" (4));
   if (res < 0) {
     errno = res * -1;
     return -1;
   }
-  return res;  
+  return res;
 }
