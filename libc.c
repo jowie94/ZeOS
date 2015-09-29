@@ -6,6 +6,8 @@
 
 #include <types.h>
 
+#include <errno.h>
+
 int errno;
 
 void itoa(int a, char *b)
@@ -41,6 +43,25 @@ int strlen(char *a)
   while (a[i]!=0) i++;
 
   return i;
+}
+
+void perror() {
+  switch (errno) {
+    case EBADF: // 9
+      write(1, "Bad file number", 15);
+      break;
+    case ENOMEM: // 12
+      write(1, "Out of memory", 13);
+      break;
+    case EACCES: // 13
+      write(1, "Permission denied", 17);
+      break;
+    case ENOSYS: // 38
+      write(1, "Function not implemented", 24);
+      break;
+    default:
+      write(1, "Error", 5);
+  }
 }
 
 int write(int fd, char *buffer, int size) {

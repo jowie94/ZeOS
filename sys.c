@@ -13,6 +13,8 @@
 
 #include <sched.h>
 
+#include <errno.h>
+
 #define LECTURA 0
 #define ESCRIPTURA 1
 
@@ -54,7 +56,7 @@ int sys_write(int fd, char* buffer, int size) {
   int written = 0;
   while (size > 0) {
     ret = copy_from_user(buffer, kbuff, 256);
-    if (ret == -1) return -1;
+    if (ret == -1) return -ENOMEM;
     int s = size < 256 ? size : 256;
     written += sys_write_console(kbuff, s);
     buffer+=256;
