@@ -40,8 +40,12 @@ int __attribute__ ((__section__(".text.main")))
   long count, acum;
   count = 75;
   acum = 0;
-  acum = outer(count);
-  write(1, "Hello world!", 12);
+  //acum = outer(count);
+  write(1, "Hello world!\n", 12);
+  int time = gettime();
+  char time_str[20];
+  itoa(time, time_str);
+  write(1, time_str, 20);
   while(1) { }
   return 0;
 }

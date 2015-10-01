@@ -91,3 +91,10 @@ fin:
   movl %eax, 0x18(%esp) // Change the eax value in the stack
   RESTORE_ALL // Restore the context
   iret
+
+ENTRY(clock_handler)
+  SAVE_ALL
+  EOI
+  call clock_routine
+  RESTORE_ALL
+  iret

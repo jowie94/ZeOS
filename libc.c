@@ -75,3 +75,11 @@ int write(int fd, char *buffer, int size) {
   }
   return res;
 }
+
+int gettime() {
+  int res;
+  __asm__("int $0x80"
+	  : "=a" (res)
+	  : "a" (10));
+  return res;
+}
