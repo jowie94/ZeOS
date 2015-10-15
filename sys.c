@@ -69,5 +69,7 @@ int sys_write(int fd, char* buffer, int size) {
 }
 
 int sys_gettime() {
+  if (zeos_ticks == 5)
+    task_switch(idle_task);
   return zeos_ticks;
 }

@@ -18,6 +18,8 @@ union task_union *task = &protected_tasks[1]; /* == union task_union task[NR_TAS
 struct list_head freequeue;
 struct list_head readyqueue;
 
+struct task_struct *idle_task;
+
 #if 1
 struct task_struct *list_head_to_task_struct(struct list_head *l)
 {
@@ -55,7 +57,7 @@ int allocate_DIR(struct task_struct *t)
 void cpu_idle(void)
 {
 	__asm__ __volatile__("sti": : :"memory");
-
+	printk("Task idle");
 	while(1)
 	{
 	;
@@ -66,12 +68,25 @@ void init_idle (void)
 {
   struct list_head *first = list_first(&freequeue);
   union task_union *task = (union task_union*) list_head_to_task_struct(first);
+  list_del(first);
   task->task.PID = 0;
   allocate_DIR(&task->task);
+  unsigned long *idle_stack = task->stack;
+  idle_stack[KERNEL_STACK_SIZE - 1] = (unsigned long) &cpu_idle;
+  idle_stack[KERNEL_STACK_SIZE - 2] = (unsigned long) 0;
+  idle_task = (struct task_struct*) task;
 }
 
 void init_task1(void)
 {
+  struct list_head *first = list_first(&freequeue);
+  union task_union *task = (union task_union*) list_head_to_task_struct(first);
+  list_del(first);
+  task->task.PID = 1;
+  allocate_DIR(&task->task);
+  set_user_pages(&task->task);
+  tss.esp0 = KERNEL_ESP(task);
+  set_cr3(get_DIR((struct task_struct*) task));
 }
 
 
@@ -92,5 +107,30 @@ struct task_struct* current()
 	: "=g" (ret_value)
   );
   return (struct task_struct*)(ret_value&0xfffff000);
+}
+
+void inner_task_switch(union task_union *new)
+{
+  tss.esp0 = KERNEL_ESP(new);
+  set_cr3(get_DIR((struct task_struct*) new));
+  int ebp = current()->kernel_esp;
+  __asm__("movl %%ebp, %0\n\t"
+	  "movl %1, %%esp\n\t"
+	  "popl %%ebp\n\t"
+	  "ret"
+	  : "=r" (ebp) : "r" (new->task.kernel_esp));
+}
+
+void task_switch(union task_union *new)
+{
+  __asm__("pushl %%esi\n\t"
+	  "pushl %%edi\n\t"
+	  "pushl %%ebx\n\t" : : :
+	  );
+  inner_task_switch(new);
+  __asm__("popl %%ebx\n\t"
+	  "popl %%edi\n\t"
+	  "popl %%esi\n\t" :
+	  );
 }
 
