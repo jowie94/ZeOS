@@ -20,6 +20,8 @@ struct list_head readyqueue;
 
 struct task_struct *idle_task;
 
+int next_free_pid = 2;
+
 #if 1
 struct task_struct *list_head_to_task_struct(struct list_head *l)
 {
@@ -110,7 +112,8 @@ struct task_struct* current()
 
 void inner_task_switch(union task_union *new)
 {
-  __asm__("movl %%ebp, %0"
+  __asm__("pushl %%ebp\n\t"
+          "movl %%ebp, %0"
           : "=r" (current()->kernel_esp));
   tss.esp0 = KERNEL_ESP(new);
   set_cr3(get_DIR((struct task_struct*) new));

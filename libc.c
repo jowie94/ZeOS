@@ -83,3 +83,19 @@ int gettime() {
 	  : "a" (10));
   return res;
 }
+
+int getpid() {
+  int res;
+  __asm__("int $0x80"
+          : "=a" (res)
+          : "a" (20));
+  return res;
+}
+
+int fork() {
+  int res;
+  __asm__("int $0x80"
+          : "=a" (res)
+          : "a" (2));
+  return res;
+}

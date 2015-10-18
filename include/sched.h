@@ -31,6 +31,7 @@ extern union task_union *task; /* Vector de tasques */
 extern struct task_struct *idle_task;
 extern struct list_head freequeue;
 extern struct list_head readyqueue;
+extern int next_free_pid;
 
 #define KERNEL_ESP(t)       	(DWord) &(t)->stack[KERNEL_STACK_SIZE]
 
