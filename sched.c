@@ -31,25 +31,25 @@ extern struct list_head blocked;
 
 
 /* get_DIR - Returns the Page Directory address for task 't' */
-page_table_entry * get_DIR (struct task_struct *t) 
+page_table_entry * get_DIR (struct task_struct *t)
 {
 	return t->dir_pages_baseAddr;
 }
 
 /* get_PT - Returns the Page Table address for task 't' */
-page_table_entry * get_PT (struct task_struct *t) 
+page_table_entry * get_PT (struct task_struct *t)
 {
 	return (page_table_entry *)(((unsigned int)(t->dir_pages_baseAddr->bits.pbase_addr))<<12);
 }
 
 
-int allocate_DIR(struct task_struct *t) 
+int allocate_DIR(struct task_struct *t)
 {
 	int pos;
 
 	pos = ((int)t-(int)task)/sizeof(union task_union);
 
-	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos]; 
+	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos];
 
 	return 1;
 }
@@ -57,7 +57,6 @@ int allocate_DIR(struct task_struct *t)
 void cpu_idle(void)
 {
 	__asm__ __volatile__("sti": : :"memory");
-	printk("Task idle");
 	while(1)
 	{
 	;
@@ -101,7 +100,7 @@ void init_sched(){
 struct task_struct* current()
 {
   int ret_value;
-  
+
   __asm__ __volatile__(
   	"movl %%esp, %0"
 	: "=g" (ret_value)
@@ -111,14 +110,14 @@ struct task_struct* current()
 
 void inner_task_switch(union task_union *new)
 {
+  __asm__("movl %%ebp, %0"
+          : "=r" (current()->kernel_esp));
   tss.esp0 = KERNEL_ESP(new);
   set_cr3(get_DIR((struct task_struct*) new));
-  int ebp = current()->kernel_esp;
-  __asm__("movl %%ebp, %0\n\t"
-	  "movl %1, %%esp\n\t"
+  __asm__("movl %0, %%esp\n\t"
 	  "popl %%ebp\n\t"
 	  "ret"
-	  : "=r" (ebp) : "r" (new->task.kernel_esp));
+	  : : "r" (new->task.kernel_esp));
 }
 
 void task_switch(union task_union *new)
@@ -130,7 +129,7 @@ void task_switch(union task_union *new)
   inner_task_switch(new);
   __asm__("popl %%ebx\n\t"
 	  "popl %%edi\n\t"
-	  "popl %%esi\n\t" :
+	  "popl %%esi\n\t"
+    "ret" :
 	  );
 }
-
