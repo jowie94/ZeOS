@@ -47,6 +47,9 @@ int strlen(char *a)
 
 void perror() {
   switch (errno) {
+    case EPERM:
+      write(1, "Operation not permitted", 23);
+      break;
     case EBADF: // 9
       write(1, "Bad file number", 15);
       break;
@@ -97,5 +100,9 @@ int fork() {
   __asm__("int $0x80"
           : "=a" (res)
           : "a" (2));
+  if (res < 0) {
+    errno = res * -1;
+    res = -1;
+  }
   return res;
 }

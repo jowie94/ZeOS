@@ -46,6 +46,18 @@ int __attribute__ ((__section__(".text.main")))
   char time_str[20];
   itoa(time, time_str);
   write(1, time_str, 20);
-  while(1) { }
+  int pid;
+  pid = fork();
+  if (pid < 0) perror();
+  else if (pid == 0) write(1, "child", 5);
+  else write(1, "parent", 6);
+  char p[5];
+  itoa(getpid(), p);
+  write(1, p, 5);
+  while(1) {
+    itoa(getpid(), p);
+    write(1, p, 5);
+    write(1, "\n", 1);
+  }
   return 0;
 }
