@@ -58,6 +58,11 @@ int __attribute__ ((__section__(".text.main")))
     itoa(getpid(), p);
     write(1, p, 5);
     write(1, "\n", 1);
+    time = gettime();
+    if (time > 10 && pid == 0) {
+      write(1, "c exit", 6);
+      exit();
+    }
   }
   return 0;
 }

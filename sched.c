@@ -73,6 +73,7 @@ void init_idle (void)
   list_del(first);
   task->task.PID = 0;
   task->task.state = ST_READY;
+  task->task.quantum = DEFAULT_QUANTUM;
   allocate_DIR(&task->task);
   unsigned long *idle_stack = task->stack;
   idle_stack[KERNEL_STACK_SIZE - 1] = (unsigned long) &cpu_idle;
@@ -86,21 +87,22 @@ void init_task1(void)
   union task_union *task = (union task_union*) list_head_to_task_struct(first);
   list_del(first);
   task->task.PID = 1;
-  task->task.state = ST_READY;
+  task->task.state = ST_RUN;
   set_quantum(task, DEFAULT_QUANTUM);
   allocate_DIR(&task->task);
   set_user_pages(&task->task);
   tss.esp0 = KERNEL_ESP(task);
   set_cr3(get_DIR((struct task_struct*) task));
-  list_add_tail(&(task->task.list), &readyqueue);
 }
 
 
-void init_sched(){
+void init_sched() {
   INIT_LIST_HEAD(&freequeue); // Init free queue
   int i;
-  for (i = 0; i < NR_TASKS; ++i) // Initialize free queue with all tasks (empty tasks)
+  for (i = 0; i < NR_TASKS; ++i) { // Initialize free queue with all tasks (empty tasks)
+    task[i].task.PID=-1;
     list_add(&(task[i].task.list), &freequeue);
+  }
   INIT_LIST_HEAD(&readyqueue); // Init ready queue (empty)
   curr_quantum = DEFAULT_QUANTUM;
 }
@@ -157,42 +159,60 @@ void update_sched_data_rr()
 
 int needs_sched_rr()
 {
-  return curr_quantum == 0;
+  if ((curr_quantum==0)&&(!list_empty(&readyqueue))) return 1;
+  if (curr_quantum==0) curr_quantum=get_quantum(current());
+  return 0;
 }
 
 void update_process_state_rr(struct task_struct *t, struct list_head *dest)
 {
-  if (dest == &freequeue) t->state = ST_READY;
-  else t->state = ST_BLOCKED;
+  if (t->state!=ST_RUN) list_del(&(t->list)); // If it is not running, delete it from its current list
+  if (dest != NULL) {
+    list_add_tail(&(t->list), dest); // Add to the dest queue tail
+    if (dest != &readyqueue) t->state = ST_BLOCKED; // If queue not ready, set status to blocked
+    else t->state = ST_READY;
 
-  set_quantum(t, DEFAULT_QUANTUM);
-
-  /* Remove process t from its current queue and put it to dest queue only
-   * if that process is not the idle and it's not the only available whith
-   * ready status.
-   */
-  if ((t != idle_task) & (!list_empty(&readyqueue))) {
-    list_del(&(t->list));
-    list_add_tail(&(t->list), dest);
+    //set_quantum(t, DEFAULT_QUANTUM);
   }
+  else t->state = ST_RUN;
 }
 
 void sched_next_rr()
 {
-  struct task_struct* next_task;
+  /*struct task_struct* next_task;
   // If no more processes in the readyqueue set next process to idle.
   if (list_empty(&readyqueue))
     next_task = idle_task;
   else {
-    next_task = list_head_to_task_struct(list_first(&readyqueue));
-    next_task->state = ST_RUN;
+    struct list_head* head = list_first(&readyqueue);
+    list_del(head);
+    next_task = list_head_to_task_struct(head);
   }
+
+  next_task->state = ST_RUN;
   // Sets system quantum to the next process one.
   curr_quantum = get_quantum(next_task);
 
   // Only switch context if next_task is not the current one.
-  if (next_task != current())
-    task_switch((union task_union*) next_task);
+
+  task_switch((union task_union*) next_task);*/
+  struct list_head *e;
+  struct task_struct *t;
+  e=list_first(&readyqueue);
+
+  if (e)
+  {
+    list_del(e);
+    t=list_head_to_task_struct(e);
+    char p[1];
+    itoa(t->PID, p);
+  }
+  else
+    t=idle_task;
+  t->state=ST_RUN;
+  curr_quantum=get_quantum(t);
+
+  task_switch((union task_union*)t);
 }
 
 void schedule()
