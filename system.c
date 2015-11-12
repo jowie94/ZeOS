@@ -1,5 +1,5 @@
 /*
- * system.c -
+ * system.c - 
  */
 
 #include <segment.h>
@@ -11,19 +11,13 @@
 #include <mm.h>
 #include <io.h>
 #include <utils.h>
-#include <zeos_mm.h> /* TO BE DELETED WHEN ADDED THE PROCESS MANAGEMENT CODE TO BECOME MULTIPROCESS */
+//#include <zeos_mm.h> /* TO BE DELETED WHEN ADDED THE PROCESS MANAGEMENT CODE TO BECOME MULTIPROCESS */
 
 
 int (*usr_main)(void) = (void *) PH_USER_START;
 unsigned int *p_sys_size = (unsigned int *) KERNEL_START;
 unsigned int *p_usr_size = (unsigned int *) KERNEL_START+1;
 unsigned int *p_rdtr = (unsigned int *) KERNEL_START+2;
-
-void keyboard_handler(void);
-void system_call_handler(void);
-void clock_handler(void);
-
-extern int zeos_ticks;
 
 /************************/
 /** Auxiliar functions **/
@@ -42,7 +36,7 @@ extern int zeos_ticks;
  */
 
 /*
- * This function MUST be 'inline' because it modifies the %esp
+ * This function MUST be 'inline' because it modifies the %esp 
  */
 inline void set_seg_regs(Word data_sel, Word stack_sel, DWord esp)
 {
@@ -63,8 +57,8 @@ inline void set_seg_regs(Word data_sel, Word stack_sel, DWord esp)
 /*
  *   Main entry point to ZEOS Operating System
  */
-int __attribute__((__section__(".text.main")))
-  main(void)
+int __attribute__((__section__(".text.main"))) 
+  main(void) 
 {
 
   set_eflags();
@@ -74,16 +68,9 @@ int __attribute__((__section__(".text.main")))
   // compiler will know its final memory location. Otherwise it will try to use the
   // 'ds' register to access the address... but we are not ready for that yet
   // (we are still in real mode).
-  set_seg_regs(__KERNEL_DS, __KERNEL_DS, (DWord) &protected_tasks[5]);
+  set_seg_regs(__KERNEL_DS, __KERNEL_DS, (DWord) &protected_tasks[2]);
 
-  printk("Kernel Loaded!    ");
-
-  zeos_ticks = 0;
-
-  setInterruptHandler(33, keyboard_handler, 0);
-  setInterruptHandler(32, clock_handler, 0);
-
-  setTrapHandler(0x80, system_call_handler, 3);
+  printk("Kernel Loaded!    "); 
 
   /* Initialize hardware data */
   setGdt(); /* Definicio de la taula de segments de memoria */
@@ -107,10 +94,9 @@ int __attribute__((__section__(".text.main")))
 
   /* Move user code/data now (after the page table initialization) */
   copy_data((void *) KERNEL_START + *p_sys_size, usr_main, *p_usr_size);
-
-
-  printk("Entering user mode...");
-
+  
+  printk("Entering user mode..."); 
+  
   enable_int();
   /*
    * We return from a 'theorical' call to a 'call gate' to reduce our privileges
@@ -121,3 +107,5 @@ int __attribute__((__section__(".text.main")))
   /* The execution never arrives to this point */
   return 0;
 }
+
+
