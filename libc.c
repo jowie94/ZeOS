@@ -128,6 +128,22 @@ int yield()
   return result;
 }
 
+int clone(void (*function)(void), void *stack)
+{
+  int result;
+  __asm__ __volatile__ (
+  	"int $0x80\n\t"
+	:"=a" (result)
+	:"a" (19), "b" (function), "c" (stack) );
+  if (result<0)
+  {
+    errno = -result;
+    return -1;
+  }
+  errno=0;
+  return result;
+}
+
 int get_stats(int pid, struct stats *st)
 {
   int result;

@@ -54,6 +54,11 @@ int ret_from_fork()
   return 0;
 }
 
+int sys_clone((void) (*function)(void=), void *stack)
+{
+
+}
+
 int sys_fork(void)
 {
   struct list_head *lhcurrent = NULL;
