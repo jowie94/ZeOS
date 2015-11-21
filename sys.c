@@ -22,8 +22,8 @@
 
 int check_fd(int fd, int permissions)
 {
-  if (fd!=1) return -EBADF; 
-  if (permissions!=ESCRIPTURA) return -EACCES; 
+  if (fd!=1) return -EBADF;
+  if (permissions!=ESCRIPTURA) return -EACCES;
   return 0;
 }
 
@@ -39,7 +39,7 @@ void system_to_user(void)
 
 int sys_ni_syscall()
 {
-	return -ENOSYS; 
+	return -ENOSYS;
 }
 
 int sys_getpid()
@@ -54,31 +54,26 @@ int ret_from_fork()
   return 0;
 }
 
-int sys_clone((void) (*function)(void=), void *stack)
-{
-
-}
-
 int sys_fork(void)
 {
   struct list_head *lhcurrent = NULL;
   union task_union *uchild;
-  
+
   /* Any free task_struct? */
   if (list_empty(&freequeue)) return -ENOMEM;
 
   lhcurrent=list_first(&freequeue);
-  
+
   list_del(lhcurrent);
-  
+
   uchild=(union task_union*)list_head_to_task_struct(lhcurrent);
-  
+
   /* Copy the parent's task struct to child's */
   copy_data(current(), uchild, sizeof(union task_union));
-  
+
   /* new pages dir */
   allocate_DIR((struct task_struct*)uchild);
-  
+
   /* Allocate pages for DATA+STACK */
   int new_ph_pag, pag, i;
   page_table_entry *process_PT = get_PT(&uchild->task);
@@ -99,9 +94,9 @@ int sys_fork(void)
       }
       /* Deallocate task_struct */
       list_add_tail(lhcurrent, &freequeue);
-      
+
       /* Return error */
-      return -EAGAIN; 
+      return -EAGAIN;
     }
   }
 
@@ -125,10 +120,10 @@ int sys_fork(void)
   }
   /* Deny access to the child's memory space */
   set_cr3(get_DIR(current()));
-  
+
   uchild->task.PID=++global_PID;
   uchild->task.state=ST_READY;
-  
+
   int register_ebp;		/* frame pointer */
   /* Map Parent's ebp to child's stack */
   __asm__ __volatile__ (
@@ -138,7 +133,7 @@ int sys_fork(void)
   register_ebp=(register_ebp - (int)current()) + (int)(uchild);
 
   uchild->task.register_esp=register_ebp + sizeof(DWord);
-  
+
   DWord temp_ebp=*(DWord*)register_ebp;
   /* Prepare child stack for context switch */
   uchild->task.register_esp-=sizeof(DWord);
@@ -152,8 +147,82 @@ int sys_fork(void)
   /* Queue child process into readyqueue */
   uchild->task.state=ST_READY;
   list_add_tail(&(uchild->task.list), &readyqueue);
-  
+
   return uchild->task.PID;
+}
+
+int sys_clone(void (*function) (void), void *stack) {
+  user_to_system();
+
+  int PID = -1;
+
+  /* Checks user parameters */
+  if (!access_ok(VERIFY_READ, function, sizeof(function)) || !access_ok(VERIFY_WRITE, stack, sizeof(stack))) {
+    system_to_user();
+    return -EFAULT;
+  }
+
+  /* Returns error if there isn't any available task in the free queue */
+  if (list_empty(&freequeue)) {
+    system_to_user();
+    return -EAGAIN;
+  }
+
+  /* Needed variables related to child and parent processes */
+  struct list_head *free_pcb = list_first(&freequeue);
+  union task_union *child = (union task_union*)list_head_to_task_struct(free_pcb);
+  union task_union *parent = (union task_union *)current();
+  struct task_struct *pcb_child = &(child->task);
+
+  list_del(free_pcb);
+
+  /* Inherits system code+data */
+  copy_data(parent, child, sizeof(union task_union));
+
+  /* Updates references for child's page directory, inherited by parent */
+  update_DIR_refs(pcb_child);
+
+  /* Updates child's PCB (only the ones that the child process does not inherit) */
+  PID = ++global_PID;
+  pcb_child->PID = PID;
+  pcb_child->state = ST_READY;
+
+  /* Prepares the return of child process. It must return 0
+   * and its kernel_esp must point to the top of the stack
+   */
+  unsigned int ebp;
+  __asm__ __volatile__(
+      "mov %%ebp,%0\n"
+      :"=g"(ebp)
+  );
+
+  unsigned int stack_stride = (ebp - (unsigned int)parent)/sizeof(unsigned long);
+
+  /* Dummy value for ebp for the child process */
+  child->stack[stack_stride-1] = 0;
+
+  child->stack[stack_stride] = (unsigned long)&ret_from_fork;
+
+  child->task.register_esp = &child->stack[stack_stride-1];
+
+  /* Modifies ebp with the address of the new stack */
+  child->stack[stack_stride+7] = (unsigned long)stack;
+
+  /* Modifies eip with the address of the new code (function) to execute */
+  child->stack[stack_stride+13] = (unsigned long)function;
+
+  /* Modifies esp with the address of the new stack */
+  child->stack[stack_stride+16] = (unsigned long)stack;
+
+  /* Adds child process to ready queue and returns its PID from parent */
+  list_add_tail(&(pcb_child->list), &readyqueue);
+
+  /* If current process is idle, immediately removes from the CPU */
+  if (current()->PID == 0) sched_next_rr();
+
+  system_to_user();
+
+  return PID;
 }
 
 #define TAM_BUFFER 512
@@ -169,7 +238,7 @@ int ret;
 		return -EINVAL;
 	if (!access_ok(VERIFY_READ, buffer, nbytes))
 		return -EFAULT;
-	
+
 	bytes_left = nbytes;
 	while (bytes_left > TAM_BUFFER) {
 		copy_from_user(buffer, localbuffer, TAM_BUFFER);
@@ -205,12 +274,12 @@ void sys_exit()
     free_frame(get_frame(process_PT, PAG_LOG_INIT_DATA_P0+i));
     del_ss_pag(process_PT, PAG_LOG_INIT_DATA_P0+i);
   }
-  
+
   /* Free task_struct */
   list_add_tail(&(current()->list), &freequeue);
-  
+
   current()->PID=-1;
-  
+
   /* Restarts execution of the next process */
   sched_next_rr();
 }
@@ -227,9 +296,9 @@ extern int remaining_quantum;
 int sys_get_stats(int pid, struct stats *st)
 {
   int i;
-  
-  if (!access_ok(VERIFY_WRITE, st, sizeof(struct stats))) return -EFAULT; 
-  
+
+  if (!access_ok(VERIFY_WRITE, st, sizeof(struct stats))) return -EFAULT;
+
   if (pid<0) return -EINVAL;
   for (i=0; i<NR_TASKS; i++)
   {

@@ -29,6 +29,8 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 
 extern struct list_head blocked;
 
+int dir_pages_refs[NR_TASKS] = {0};
+
 // Free task structs
 struct list_head freequeue;
 // Ready queue
@@ -60,13 +62,22 @@ page_table_entry * get_PT (struct task_struct *t)
 
 int allocate_DIR(struct task_struct *t)
 {
-	int pos;
+  int pos;
+    for (pos = 0; pos < NR_TASKS; pos++) {
+      if (dir_pages_refs[pos] == 0) {
+        ++dir_pages_refs[pos];
+        t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos];
+        return 1;
+      }
+    }
+  return -1;
+}
 
-	pos = ((int)t-(int)task)/sizeof(union task_union);
 
-	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos];
-
-	return 1;
+void update_DIR_refs(struct task_struct *t)
+{
+    /* Calculates which directory page entry has assigned */
+    ++dir_pages_refs[POS_TO_DIR_PAGES_REFS(get_DIR(t))];
 }
 
 void cpu_idle(void)

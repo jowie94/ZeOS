@@ -1,10 +1,17 @@
 #include <libc.h>
 
+void test()
+{
+  write(1, "Cloned", 6);
+  exit();
+}
+
 int __attribute__ ((__section__(".text.main")))
   main(void)
 {
     /* Next line, tries to move value 0 to CR3 register. This register is a privileged one, and so it will raise an exception */
      /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
-
+  char stack[255];
+  clone(test, &stack);
   while (1);
 }

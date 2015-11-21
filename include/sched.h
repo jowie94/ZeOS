@@ -62,7 +62,12 @@ void force_task_switch(void);
 
 struct task_struct *list_head_to_task_struct(struct list_head *l);
 
+#define POS_TO_DIR_PAGES_REFS(p_dir)                        \
+    (int)(((unsigned long)p_dir - (unsigned long)(&dir_pages[0][0])) / (sizeof(dir_pages[0]))) \
+
 int allocate_DIR(struct task_struct *t);
+
+void update_DIR_refs(struct task_struct *t);
 
 page_table_entry * get_PT (struct task_struct *t) ;
 
