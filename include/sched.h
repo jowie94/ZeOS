@@ -56,28 +56,25 @@ struct task_struct * current();
 
 void task_switch(union task_union*t);
 
-void sched_next_rr(void);
-
-void force_task_switch(void);
-
 struct task_struct *list_head_to_task_struct(struct list_head *l);
 
 #define POS_TO_DIR_PAGES_REFS(p_dir)                        \
-    (int)(((unsigned long)p_dir - (unsigned long)(&dir_pages[0][0])) / (sizeof(dir_pages[0]))) \
+    (int)(((int)p_dir - (int)dir_pages)/(sizeof(page_table_entry)*TOTAL_PAGES)) \
 
 int allocate_DIR(struct task_struct *t);
 
-void update_DIR_refs(struct task_struct *t);
+int increase_refs_DIR(page_table_entry *dir);
 
 page_table_entry * get_PT (struct task_struct *t) ;
 
 page_table_entry * get_DIR (struct task_struct *t) ;
 
 /* Headers for the scheduling policy */
-void sched_next_rr();
+void sched_next_rr(void);
 void update_process_state_rr(struct task_struct *t, struct list_head *dest);
 int needs_sched_rr();
 void update_sched_data_rr();
+void force_task_switch(void);
 
 void init_stats(struct stats *s);
 

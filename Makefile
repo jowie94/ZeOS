@@ -8,9 +8,9 @@
 AS86	= as86 -0 -a
 LD86	= ld86 -0
 
-HOSTCFLAGS = -Wall -Wstrict-prototypes -g -m32
-HOSTCC 	= gcc
-CC      = gcc 
+HOSTCFLAGS = -Wall -Wstrict-prototypes -g -m32 -fno-optimize-sibling-calls
+HOSTCC 	= gcc-4.8
+CC      = gcc-4.8
 AS      = as --32
 LD      = ld -melf_i386
 OBJCOPY = objcopy -O binary -R .note -R .comment -S
@@ -18,13 +18,13 @@ OBJCOPY = objcopy -O binary -R .note -R .comment -S
 INCLUDEDIR = include
 
 # Define here flags to compile the tests if needed
-JP = 
+JP =
 
-CFLAGS = -O2  -g $(JP) -fno-omit-frame-pointer -ffreestanding -Wall -I$(INCLUDEDIR) -m32
+CFLAGS = -O2  -g $(JP) -fno-omit-frame-pointer -ffreestanding -Wall -I$(INCLUDEDIR) -m32 -fno-optimize-sibling-calls
 ASMFLAGS = -I$(INCLUDEDIR) -m32
 SYSLDFLAGS = -T system.lds
 USRLDFLAGS = -T user.lds
-LINKFLAGS = -g 
+LINKFLAGS = -g
 
 SYSOBJ = interrupt.o entry.o sys_call_table.o io.o sched.o sys.o mm.o devices.o utils.o hardware.o list.o p_stats.o
 
@@ -76,18 +76,18 @@ utils.o:utils.c $(INCLUDEDIR)/utils.h
 
 p_stats.o:p_stats.c $(INCLUDEDIR)/utils.h
 
-system.o:system.c $(INCLUDEDIR)/hardware.h system.lds $(SYSOBJ) $(INCLUDEDIR)/segment.h $(INCLUDEDIR)/types.h $(INCLUDEDIR)/interrupt.h $(INCLUDEDIR)/system.h $(INCLUDEDIR)/sched.h $(INCLUDEDIR)/mm.h $(INCLUDEDIR)/io.h $(INCLUDEDIR)/mm_address.h 
+system.o:system.c $(INCLUDEDIR)/hardware.h system.lds $(SYSOBJ) $(INCLUDEDIR)/segment.h $(INCLUDEDIR)/types.h $(INCLUDEDIR)/interrupt.h $(INCLUDEDIR)/system.h $(INCLUDEDIR)/sched.h $(INCLUDEDIR)/mm.h $(INCLUDEDIR)/io.h $(INCLUDEDIR)/mm_address.h
 
 
 system: system.o system.lds $(SYSOBJ)
-	$(LD) $(LINKFLAGS) $(SYSLDFLAGS) -o $@ $< $(SYSOBJ) $(LIBZEOS) 
+	$(LD) $(LINKFLAGS) $(SYSLDFLAGS) -o $@ $< $(SYSOBJ) $(LIBZEOS)
 
-user: user.o user.lds $(USROBJ) 
+user: user.o user.lds $(USROBJ)
 	$(LD) $(LINKFLAGS) $(USRLDFLAGS) -o $@ $< $(USROBJ)
 
 
 clean:
-	rm -f *.o *.s bochsout.txt parport.out system.out system bootsect zeos.bin user user.out *~ build 
+	rm -f *.o *.s bochsout.txt parport.out system.out system bootsect zeos.bin user user.out *~ build
 
 disk: zeos.bin
 	dd if=zeos.bin of=/dev/fd0

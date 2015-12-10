@@ -1,5 +1,5 @@
 /*
- * libc.c 
+ * libc.c
  */
 
 #include <libc.h>
@@ -12,9 +12,9 @@ void itoa(int a, char *b)
 {
   int i, i1;
   char c;
-  
+
   if (a==0) { b[0]='0'; b[1]=0; return ;}
-  
+
   i=0;
   while (a>0)
   {
@@ -22,7 +22,7 @@ void itoa(int a, char *b)
     a=a/10;
     i++;
   }
-  
+
   for (i1=0; i1<i/2; i1++)
   {
     c=b[i1];
@@ -35,11 +35,11 @@ void itoa(int a, char *b)
 int strlen(char *a)
 {
   int i;
-  
+
   i=0;
-  
+
   while (a[i]!=0) i++;
-  
+
   return i;
 }
 
@@ -55,7 +55,7 @@ void perror()
 int write(int fd, char *buffer, int size)
 {
   int result;
-  
+
   __asm__ __volatile__ (
 	"int $0x80\n\t"
 	: "=a" (result)
@@ -68,11 +68,11 @@ int write(int fd, char *buffer, int size)
   errno=0;
   return result;
 }
- 
+
 int gettime()
 {
   int result;
-  
+
   __asm__ __volatile__ (
 	"int $0x80\n\t"
 	:"=a" (result)
@@ -84,7 +84,7 @@ int gettime()
 int getpid()
 {
   int result;
-  
+
   __asm__ __volatile__ (
   	"int $0x80\n\t"
 	:"=a" (result)
@@ -96,7 +96,7 @@ int getpid()
 int fork()
 {
   int result;
-  
+
   __asm__ __volatile__ (
   	"int $0x80\n\t"
 	:"=a" (result)
@@ -151,6 +151,70 @@ int get_stats(int pid, struct stats *st)
   	"int $0x80\n\t"
 	:"=a" (result)
 	:"a" (35), "b" (pid), "c" (st) );
+  if (result<0)
+  {
+    errno = -result;
+    return -1;
+  }
+  errno=0;
+  return result;
+}
+
+int sem_init(int n_sem, unsigned int value)
+{
+  int result;
+  __asm__ __volatile__ (
+    "int $0x80\n\t"
+    :"=a" (result)
+  	:"a" (21), "b" (n_sem), "c" (value) );
+  if (result<0)
+  {
+    errno = -result;
+    return -1;
+  }
+  errno=0;
+  return result;
+}
+
+int sem_wait(int n_sem)
+{
+  int result;
+  __asm__ __volatile__ (
+    "int $0x80\n\t"
+    :"=a" (result)
+    :"a" (22), "b" (n_sem) );
+  if (result<0)
+  {
+    errno = -result;
+    return -1;
+  }
+  errno=0;
+  return result;
+}
+
+int sem_signal(int n_sem)
+{
+  int result;
+  __asm__ __volatile__ (
+    "int $0x80\n\t"
+    :"=a" (result)
+    :"a" (23), "b" (n_sem) );
+  if (result<0)
+  {
+    errno = -result;
+    return -1;
+  }
+  errno=0;
+  return result;
+}
+
+int sem_destroy(int n_sem)
+{
+  int result;
+  __asm__ __volatile__ (
+    "int $0x80\n\t"
+    :"=a" (result)
+    :"a" (24), "b" (n_sem) );
   if (result<0)
   {
     errno = -result;

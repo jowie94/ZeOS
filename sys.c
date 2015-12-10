@@ -20,6 +20,9 @@
 #define LECTURA 0
 #define ESCRIPTURA 1
 
+#define SEM_EXISTS if(n_sem >= 20 || n_sem < 0) return -1;
+#define SEM_HAS_OWNER (sem->owner != -1)
+
 int check_fd(int fd, int permissions)
 {
   if (fd!=1) return -EBADF;
@@ -152,77 +155,55 @@ int sys_fork(void)
 }
 
 int sys_clone(void (*function) (void), void *stack) {
-  user_to_system();
+  struct list_head *lhcurrent = NULL;
+  union task_union *uchild;
 
-  int PID = -1;
+  /* Any free task_struct? */
+  if (list_empty(&freequeue)) return -ENOMEM;
 
-  /* Checks user parameters */
-  if (!access_ok(VERIFY_READ, function, sizeof(function)) || !access_ok(VERIFY_WRITE, stack, sizeof(stack))) {
-    system_to_user();
-    return -EFAULT;
-  }
+  lhcurrent=list_first(&freequeue);
 
-  /* Returns error if there isn't any available task in the free queue */
-  if (list_empty(&freequeue)) {
-    system_to_user();
-    return -EAGAIN;
-  }
+  list_del(lhcurrent);
 
-  /* Needed variables related to child and parent processes */
-  struct list_head *free_pcb = list_first(&freequeue);
-  union task_union *child = (union task_union*)list_head_to_task_struct(free_pcb);
-  union task_union *parent = (union task_union *)current();
-  struct task_struct *pcb_child = &(child->task);
+  uchild=(union task_union*)list_head_to_task_struct(lhcurrent);
 
-  list_del(free_pcb);
+  /* Copy the parent's task struct to child's */
+  copy_data(current(), uchild, sizeof(union task_union));
 
-  /* Inherits system code+data */
-  copy_data(parent, child, sizeof(union task_union));
+  increase_refs_DIR(get_DIR(current()));
 
-  /* Updates references for child's page directory, inherited by parent */
-  update_DIR_refs(pcb_child);
+  uchild->task.PID=++global_PID;
+  uchild->task.state=ST_READY;
 
-  /* Updates child's PCB (only the ones that the child process does not inherit) */
-  PID = ++global_PID;
-  pcb_child->PID = PID;
-  pcb_child->state = ST_READY;
+  int register_ebp;		/* frame pointer */
+  /* Map Parent's ebp to child's stack */
+  __asm__ __volatile__ (
+    "movl %%ebp, %0\n\t"
+      : "=g" (register_ebp)
+      : );
+  register_ebp=(register_ebp - (int)current()) + (int)(uchild);
 
-  /* Prepares the return of child process. It must return 0
-   * and its kernel_esp must point to the top of the stack
-   */
-  unsigned int ebp;
-  __asm__ __volatile__(
-      "mov %%ebp,%0\n"
-      :"=g"(ebp)
-  );
+  uchild->task.register_esp=register_ebp + sizeof(DWord);
 
-  unsigned int stack_stride = (ebp - (unsigned int)parent)/sizeof(unsigned long);
+  DWord temp_ebp=*(DWord*)register_ebp;
+  /* Prepare child stack for context switch */
+  uchild->task.register_esp-=sizeof(DWord);
+  *(DWord*)(uchild->task.register_esp)=(DWord)&ret_from_fork;
+  uchild->task.register_esp-=sizeof(DWord);
+  *(DWord*)(uchild->task.register_esp)=temp_ebp;
 
-  /* Dummy value for ebp for the child process */
-  child->stack[stack_stride-1] = 0;
+  /* ... and for the return to user */
+  uchild->stack[KERNEL_STACK_SIZE - 5] = (unsigned long) function;
+  uchild->stack[KERNEL_STACK_SIZE - 2] = (unsigned long) stack;
 
-  child->stack[stack_stride] = (unsigned long)&ret_from_fork;
+  /* Set stats to 0 */
+  init_stats(&(uchild->task.p_stats));
 
-  child->task.register_esp = &child->stack[stack_stride-1];
+  /* Queue child process into readyqueue */
+  uchild->task.state=ST_READY;
+  list_add_tail(&(uchild->task.list), &readyqueue);
 
-  /* Modifies ebp with the address of the new stack */
-  child->stack[stack_stride+7] = (unsigned long)stack;
-
-  /* Modifies eip with the address of the new code (function) to execute */
-  child->stack[stack_stride+13] = (unsigned long)function;
-
-  /* Modifies esp with the address of the new stack */
-  child->stack[stack_stride+16] = (unsigned long)stack;
-
-  /* Adds child process to ready queue and returns its PID from parent */
-  list_add_tail(&(pcb_child->list), &readyqueue);
-
-  /* If current process is idle, immediately removes from the CPU */
-  if (current()->PID == 0) sched_next_rr();
-
-  system_to_user();
-
-  return PID;
+  return uchild->task.PID;
 }
 
 #define TAM_BUFFER 512
@@ -310,4 +291,77 @@ int sys_get_stats(int pid, struct stats *st)
     }
   }
   return -ESRCH; /*ESRCH */
+}
+
+struct Semaphore
+{
+  int owner;
+  int counter;
+  struct list_head blocked;
+};
+
+struct Semaphore semaphore_list[20];
+
+void init_semaphores(void)
+{
+  int i;
+  for (i = 0; i < 20; ++i)
+  {
+    semaphore_list[i].owner = -1;
+		INIT_LIST_HEAD(&semaphore_list[i].blocked);
+  }
+
+}
+
+int sys_sem_init(int n_sem, unsigned int value)
+{
+  SEM_EXISTS;
+  struct Semaphore *sem = &semaphore_list[n_sem];
+  if (SEM_HAS_OWNER)
+    return -1;
+  sem->owner = sys_getpid();
+  sem->counter = value;
+  return 0;
+}
+
+int sys_sem_wait(int n_sem)
+{
+  SEM_EXISTS;
+  struct Semaphore *sem = &semaphore_list[n_sem];
+  if (!SEM_HAS_OWNER)
+    return -1;
+  if (sem->counter > 0)
+    --sem->counter;
+  else {
+    update_process_state_rr(current(), &sem->blocked);
+    sched_next_rr();
+    if (sem->owner == -1)
+      return -1;
+  }
+  return 0;
+}
+
+int sys_sem_signal(int n_sem)
+{
+  SEM_EXISTS;
+  struct Semaphore *sem = &semaphore_list[n_sem];
+  if (list_empty(&sem->blocked))
+    ++sem->counter;
+  else {
+    struct list_head *e = list_first(&sem->blocked);
+    struct task_struct *t = list_head_to_task_struct(e);
+    update_process_state_rr(t, &readyqueue);
+  }
+  return 0;
+}
+
+int sys_sem_destroy(int n_sem)
+{
+  SEM_EXISTS;
+  struct Semaphore *sem = &semaphore_list[n_sem];
+  if (sem->owner != sys_getpid())
+    return -1;
+  sem->owner = -1;
+  sem->counter = 0;
+  return 0;
 }

@@ -65,19 +65,20 @@ int allocate_DIR(struct task_struct *t)
   int pos;
     for (pos = 0; pos < NR_TASKS; pos++) {
       if (dir_pages_refs[pos] == 0) {
-        ++dir_pages_refs[pos];
         t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos];
+        ++dir_pages_refs[pos];
         return 1;
       }
     }
   return -1;
 }
 
-
-void update_DIR_refs(struct task_struct *t)
+/* increase_refs_DIR - Increases number of references to directory and returns
+ * previous number of references. */
+int increase_refs_DIR(page_table_entry *dir)
 {
-    /* Calculates which directory page entry has assigned */
-    ++dir_pages_refs[POS_TO_DIR_PAGES_REFS(get_DIR(t))];
+        int pos = ((int)dir - (int)dir_pages)/(sizeof(page_table_entry)*TOTAL_PAGES);
+        return dir_pages_refs[pos] ++;
 }
 
 void cpu_idle(void)
@@ -139,10 +140,10 @@ void sched_next_rr(void)
   struct list_head *e;
   struct task_struct *t;
 
-  e=list_first(&readyqueue);
 
-  if (e)
+  if (!list_empty(&readyqueue))
   {
+    e=list_first(&readyqueue);
     list_del(e);
 
     t=list_head_to_task_struct(e);
@@ -156,7 +157,6 @@ void sched_next_rr(void)
   update_stats(&(current()->p_stats.system_ticks), &(current()->p_stats.elapsed_total_ticks));
   update_stats(&(t->p_stats.ready_ticks), &(t->p_stats.elapsed_total_ticks));
   t->p_stats.total_trans++;
-
   task_switch((union task_union*)t);
 }
 
@@ -264,7 +264,9 @@ void inner_task_switch(union task_union *new)
   tss.esp0=(int)&(new->stack[KERNEL_STACK_SIZE]);
 
   /* TLB flush. New address space */
-  set_cr3(new_DIR);
+  if (new_DIR != get_DIR(current())) {
+    set_cr3(new_DIR);
+  }
 
   /* Stores current ebp */
   __asm__ __volatile__ (
