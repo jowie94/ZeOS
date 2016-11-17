@@ -16,4 +16,4 @@ You can debug its code with the Bochs debugger using `make emuldbg` or with the 
 
 ## Adding your own user code
 
-To add your own user code you just need to modify the file *user.c*. There starts the code runned in user mode, so modify this file and add your own code there, then you can add more files which are called from this one.
+To add your own user code you just need to modify the file *user.c*. There starts the code executed in user mode, so modify this file and add your own code there, then you can add more files which are called from this one.
